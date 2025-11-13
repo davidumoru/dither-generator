@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ChevronDown, ChevronUp } from "lucide-react"
 
 type DitherAlgorithm = "floyd-steinberg" | "atkinson" | "ordered" | "stucki" | "burkes" | "sierra"
 
@@ -18,6 +19,7 @@ export default function DitherGenerator() {
   const [darkColor, setDarkColor] = useState("#000000")
   const [lightColor, setLightColor] = useState("#ffffff")
   const [algorithm, setAlgorithm] = useState<DitherAlgorithm>("floyd-steinberg")
+  const [isControlsOpen, setIsControlsOpen] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -439,10 +441,16 @@ export default function DitherGenerator() {
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Controls */}
           <div className="border-4 border-foreground bg-background">
-            <div className="border-b-4 border-foreground p-4 bg-muted">
+            <button
+              onClick={() => setIsControlsOpen(!isControlsOpen)}
+              className="w-full border-b-4 border-foreground p-4 bg-muted flex items-center justify-between lg:pointer-events-none"
+            >
               <h2 className="font-bold uppercase text-sm tracking-wider">[CONTROLS]</h2>
-            </div>
-            <div className="p-6 space-y-6">
+              <span className="lg:hidden">
+                {isControlsOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+              </span>
+            </button>
+            <div className={`p-6 space-y-6 ${isControlsOpen ? "block" : "hidden lg:block"}`}>
               <div className="space-y-3">
                 <input
                   ref={fileInputRef}
