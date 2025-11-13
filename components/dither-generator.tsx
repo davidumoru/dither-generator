@@ -423,12 +423,14 @@ export default function DitherGenerator() {
   }
 
   return (
-    <div className="min-h-screen border-8 border-foreground p-4 md:p-8">
+    <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="border-4 border-foreground p-6 bg-background">
-          <h1 className="text-3xl md:text-5xl font-bold uppercase tracking-wider">[DITHER_GENERATOR]</h1>
-          <p className="text-sm md:text-base mt-2 text-muted-foreground uppercase">
+          <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold uppercase tracking-wider wrap-break-words">
+            [DITHER_GENERATOR]
+          </h1>
+          <p className="text-xs sm:text-sm md:text-base mt-2 text-muted-foreground uppercase wrap-break-words">
             // Transform any image with dithering algorithms
           </p>
         </div>
@@ -596,6 +598,21 @@ export default function DitherGenerator() {
               parameters, download result.
             </p>
           </div>
+        </div>
+
+        {/* Developer Credit Footer */}
+        <div className="border-4 border-foreground bg-background p-4">
+          <p className="text-xs uppercase text-center text-muted-foreground">
+            // Developed by{" "}
+            <a
+              href="https://x.com/theumoru"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-foreground font-bold hover:underline"
+            >
+              David Umoru
+            </a>
+          </p>
         </div>
       </div>
     </div>
