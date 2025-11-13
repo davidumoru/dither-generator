@@ -16,6 +16,7 @@ export default function DitherGenerator() {
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null)
   const [threshold, setThreshold] = useState([128])
   const [ditherStrength, setDitherStrength] = useState([0.5])
+  const [scale, setScale] = useState([100])
   const [darkColor, setDarkColor] = useState("#000000")
   const [lightColor, setLightColor] = useState("#ffffff")
   const [algorithm, setAlgorithm] = useState<DitherAlgorithm>("floyd-steinberg")
@@ -401,14 +402,27 @@ export default function DitherGenerator() {
       ctx.fillStyle = lightColor
       ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      const scaleFactor = scale[0] / 100
+      const scaledWidth = Math.max(1, Math.floor(canvas.width * scaleFactor))
+      const scaledHeight = Math.max(1, Math.floor(canvas.height * scaleFactor))
 
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const tempCanvas = document.createElement("canvas")
+      tempCanvas.width = scaledWidth
+      tempCanvas.height = scaledHeight
+      const tempCtx = tempCanvas.getContext("2d")
+      if (!tempCtx) return
+
+      tempCtx.drawImage(img, 0, 0, scaledWidth, scaledHeight)
+
+      const imageData = tempCtx.getImageData(0, 0, scaledWidth, scaledHeight)
       const dithered = applyDither(imageData, threshold[0], ditherStrength[0], darkColor, lightColor, algorithm)
-      ctx.putImageData(dithered, 0, 0)
+      tempCtx.putImageData(dithered, 0, 0)
+
+      ctx.imageSmoothingEnabled = false
+      ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height)
     }
     img.src = image
-  }, [image, threshold, ditherStrength, darkColor, lightColor, algorithm])
+  }, [image, threshold, ditherStrength, darkColor, lightColor, algorithm, scale])
 
   const handleDownload = () => {
     if (!canvasRef.current) return
@@ -559,6 +573,15 @@ export default function DitherGenerator() {
                   step={0.01}
                   className="w-full"
                 />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="uppercase text-xs font-bold tracking-wider">[DOT_SIZE]</Label>
+                  <span className="text-xs font-mono border-2 border-foreground px-2 py-1">{scale[0]}%</span>
+                </div>
+                <Slider value={scale} onValueChange={setScale} min={5} max={100} step={5} className="w-full" />
+                <p className="text-xs text-muted-foreground">Lower values = larger dither dots</p>
               </div>
 
               <Button
