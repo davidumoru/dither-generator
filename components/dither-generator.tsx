@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ChevronDown, ChevronUp } from "lucide-react"
+import { ChevronDown, ChevronUp } from 'lucide-react'
 
 type DitherAlgorithm = "floyd-steinberg" | "atkinson" | "ordered" | "stucki" | "burkes" | "sierra"
 
@@ -20,6 +20,7 @@ export default function DitherGenerator() {
   const [darkColor, setDarkColor] = useState("#000000")
   const [lightColor, setLightColor] = useState("#ffffff")
   const [algorithm, setAlgorithm] = useState<DitherAlgorithm>("floyd-steinberg")
+  const [preserveColor, setPreserveColor] = useState(false)
   const [isControlsOpen, setIsControlsOpen] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -52,6 +53,7 @@ export default function DitherGenerator() {
     strength: number,
     darkColor: string,
     lightColor: string,
+    preserveColor: boolean,
   ): ImageData => {
     const data = new Uint8ClampedArray(imageData.data)
     const width = imageData.width
@@ -66,39 +68,79 @@ export default function DitherGenerator() {
         const oldG = data[idx + 1]
         const oldB = data[idx + 2]
         const gray = 0.299 * oldR + 0.587 * oldG + 0.114 * oldB
-        const newColor = gray < threshold ? dark : light
-        const newGray = gray < threshold ? 0 : 255
-        const error = (gray - newGray) * strength
 
-        data[idx] = newColor.r
-        data[idx + 1] = newColor.g
-        data[idx + 2] = newColor.b
+        if (preserveColor) {
+          const newGray = gray < threshold ? 0 : 255
+          const errorR = (oldR - newGray) * strength
+          const errorG = (oldG - newGray) * strength
+          const errorB = (oldB - newGray) * strength
 
-        if (x + 1 < width) {
-          const nextIdx = idx + 4
-          data[nextIdx] += error * (7 / 16)
-          data[nextIdx + 1] += error * (7 / 16)
-          data[nextIdx + 2] += error * (7 / 16)
-        }
-
-        if (y + 1 < height) {
-          if (x > 0) {
-            const nextIdx = ((y + 1) * width + (x - 1)) * 4
-            data[nextIdx] += error * (3 / 16)
-            data[nextIdx + 1] += error * (3 / 16)
-            data[nextIdx + 2] += error * (3 / 16)
-          }
-
-          const nextIdx = ((y + 1) * width + x) * 4
-          data[nextIdx] += error * (5 / 16)
-          data[nextIdx + 1] += error * (5 / 16)
-          data[nextIdx + 2] += error * (5 / 16)
+          data[idx] = gray < threshold ? 0 : oldR
+          data[idx + 1] = gray < threshold ? 0 : oldG
+          data[idx + 2] = gray < threshold ? 0 : oldB
 
           if (x + 1 < width) {
-            const nextIdx = ((y + 1) * width + (x + 1)) * 4
-            data[nextIdx] += error * (1 / 16)
-            data[nextIdx + 1] += error * (1 / 16)
-            data[nextIdx + 2] += error * (1 / 16)
+            const nextIdx = idx + 4
+            data[nextIdx] += errorR * (7 / 16)
+            data[nextIdx + 1] += errorG * (7 / 16)
+            data[nextIdx + 2] += errorB * (7 / 16)
+          }
+
+          if (y + 1 < height) {
+            if (x > 0) {
+              const nextIdx = ((y + 1) * width + (x - 1)) * 4
+              data[nextIdx] += errorR * (3 / 16)
+              data[nextIdx + 1] += errorG * (3 / 16)
+              data[nextIdx + 2] += errorB * (3 / 16)
+            }
+
+            const nextIdx = ((y + 1) * width + x) * 4
+            data[nextIdx] += errorR * (5 / 16)
+            data[nextIdx + 1] += errorG * (5 / 16)
+            data[nextIdx + 2] += errorB * (5 / 16)
+
+            if (x + 1 < width) {
+              const nextIdx = ((y + 1) * width + (x + 1)) * 4
+              data[nextIdx] += errorR * (1 / 16)
+              data[nextIdx + 1] += errorG * (1 / 16)
+              data[nextIdx + 2] += errorB * (1 / 16)
+            }
+          }
+        } else {
+          const newColor = gray < threshold ? dark : light
+          const newGray = gray < threshold ? 0 : 255
+          const error = (gray - newGray) * strength
+
+          data[idx] = newColor.r
+          data[idx + 1] = newColor.g
+          data[idx + 2] = newColor.b
+
+          if (x + 1 < width) {
+            const nextIdx = idx + 4
+            data[nextIdx] += error * (7 / 16)
+            data[nextIdx + 1] += error * (7 / 16)
+            data[nextIdx + 2] += error * (7 / 16)
+          }
+
+          if (y + 1 < height) {
+            if (x > 0) {
+              const nextIdx = ((y + 1) * width + (x - 1)) * 4
+              data[nextIdx] += error * (3 / 16)
+              data[nextIdx + 1] += error * (3 / 16)
+              data[nextIdx + 2] += error * (3 / 16)
+            }
+
+            const nextIdx = ((y + 1) * width + x) * 4
+            data[nextIdx] += error * (5 / 16)
+            data[nextIdx + 1] += error * (5 / 16)
+            data[nextIdx + 2] += error * (5 / 16)
+
+            if (x + 1 < width) {
+              const nextIdx = ((y + 1) * width + (x + 1)) * 4
+              data[nextIdx] += error * (1 / 16)
+              data[nextIdx + 1] += error * (1 / 16)
+              data[nextIdx + 2] += error * (1 / 16)
+            }
           }
         }
       }
@@ -113,6 +155,7 @@ export default function DitherGenerator() {
     strength: number,
     darkColor: string,
     lightColor: string,
+    preserveColor: boolean,
   ): ImageData => {
     const data = new Uint8ClampedArray(imageData.data)
     const width = imageData.width
@@ -127,29 +170,57 @@ export default function DitherGenerator() {
         const oldG = data[idx + 1]
         const oldB = data[idx + 2]
         const gray = 0.299 * oldR + 0.587 * oldG + 0.114 * oldB
-        const newColor = gray < threshold ? dark : light
-        const newGray = gray < threshold ? 0 : 255
-        const error = (gray - newGray) * strength
 
-        data[idx] = newColor.r
-        data[idx + 1] = newColor.g
-        data[idx + 2] = newColor.b
+        if (preserveColor) {
+          const newGray = gray < threshold ? 0 : 255
+          const errorR = (oldR - newGray) * strength
+          const errorG = (oldG - newGray) * strength
+          const errorB = (oldB - newGray) * strength
 
-        const distribute = (dx: number, dy: number) => {
-          if (x + dx >= 0 && x + dx < width && y + dy < height) {
-            const nextIdx = ((y + dy) * width + (x + dx)) * 4
-            data[nextIdx] += error / 8
-            data[nextIdx + 1] += error / 8
-            data[nextIdx + 2] += error / 8
+          data[idx] = gray < threshold ? 0 : oldR
+          data[idx + 1] = gray < threshold ? 0 : oldG
+          data[idx + 2] = gray < threshold ? 0 : oldB
+
+          const distribute = (dx: number, dy: number) => {
+            if (x + dx >= 0 && x + dx < width && y + dy < height) {
+              const nextIdx = ((y + dy) * width + (x + dx)) * 4
+              data[nextIdx] += errorR / 8
+              data[nextIdx + 1] += errorG / 8
+              data[nextIdx + 2] += errorB / 8
+            }
           }
-        }
 
-        distribute(1, 0)
-        distribute(2, 0)
-        distribute(-1, 1)
-        distribute(0, 1)
-        distribute(1, 1)
-        distribute(0, 2)
+          distribute(1, 0)
+          distribute(2, 0)
+          distribute(-1, 1)
+          distribute(0, 1)
+          distribute(1, 1)
+          distribute(0, 2)
+        } else {
+          const newColor = gray < threshold ? dark : light
+          const newGray = gray < threshold ? 0 : 255
+          const error = (gray - newGray) * strength
+
+          data[idx] = newColor.r
+          data[idx + 1] = newColor.g
+          data[idx + 2] = newColor.b
+
+          const distribute = (dx: number, dy: number) => {
+            if (x + dx >= 0 && x + dx < width && y + dy < height) {
+              const nextIdx = ((y + dy) * width + (x + dx)) * 4
+              data[nextIdx] += error / 8
+              data[nextIdx + 1] += error / 8
+              data[nextIdx + 2] += error / 8
+            }
+          }
+
+          distribute(1, 0)
+          distribute(2, 0)
+          distribute(-1, 1)
+          distribute(0, 1)
+          distribute(1, 1)
+          distribute(0, 2)
+        }
       }
     }
 
@@ -162,6 +233,7 @@ export default function DitherGenerator() {
     strength: number,
     darkColor: string,
     lightColor: string,
+    preserveColor: boolean,
   ): ImageData => {
     const data = new Uint8ClampedArray(imageData.data)
     const width = imageData.width
@@ -190,11 +262,19 @@ export default function DitherGenerator() {
 
         const bayerValue = bayerMatrix[y % 8][x % 8]
         const adjustedThreshold = threshold + (bayerValue - 32) * strength * 2
-        const newColor = gray < adjustedThreshold ? dark : light
 
-        data[idx] = newColor.r
-        data[idx + 1] = newColor.g
-        data[idx + 2] = newColor.b
+        if (preserveColor) {
+          if (gray < adjustedThreshold) {
+            data[idx] = 0
+            data[idx + 1] = 0
+            data[idx + 2] = 0
+          }
+        } else {
+          const newColor = gray < adjustedThreshold ? dark : light
+          data[idx] = newColor.r
+          data[idx + 1] = newColor.g
+          data[idx + 2] = newColor.b
+        }
       }
     }
 
@@ -207,6 +287,7 @@ export default function DitherGenerator() {
     strength: number,
     darkColor: string,
     lightColor: string,
+    preserveColor: boolean,
   ): ImageData => {
     const data = new Uint8ClampedArray(imageData.data)
     const width = imageData.width
@@ -221,35 +302,69 @@ export default function DitherGenerator() {
         const oldG = data[idx + 1]
         const oldB = data[idx + 2]
         const gray = 0.299 * oldR + 0.587 * oldG + 0.114 * oldB
-        const newColor = gray < threshold ? dark : light
-        const newGray = gray < threshold ? 0 : 255
-        const error = (gray - newGray) * strength
 
-        data[idx] = newColor.r
-        data[idx + 1] = newColor.g
-        data[idx + 2] = newColor.b
+        if (preserveColor) {
+          const newGray = gray < threshold ? 0 : 255
+          const errorR = (oldR - newGray) * strength
+          const errorG = (oldG - newGray) * strength
+          const errorB = (oldB - newGray) * strength
 
-        const distribute = (dx: number, dy: number, factor: number) => {
-          if (x + dx >= 0 && x + dx < width && y + dy < height) {
-            const nextIdx = ((y + dy) * width + (x + dx)) * 4
-            data[nextIdx] += error * (factor / 42)
-            data[nextIdx + 1] += error * (factor / 42)
-            data[nextIdx + 2] += error * (factor / 42)
+          data[idx] = gray < threshold ? 0 : oldR
+          data[idx + 1] = gray < threshold ? 0 : oldG
+          data[idx + 2] = gray < threshold ? 0 : oldB
+
+          const distribute = (dx: number, dy: number, factor: number) => {
+            if (x + dx >= 0 && x + dx < width && y + dy < height) {
+              const nextIdx = ((y + dy) * width + (x + dx)) * 4
+              data[nextIdx] += errorR * (factor / 42)
+              data[nextIdx + 1] += errorG * (factor / 42)
+              data[nextIdx + 2] += errorB * (factor / 42)
+            }
           }
-        }
 
-        distribute(1, 0, 8)
-        distribute(2, 0, 4)
-        distribute(-2, 1, 2)
-        distribute(-1, 1, 4)
-        distribute(0, 1, 8)
-        distribute(1, 1, 4)
-        distribute(2, 1, 2)
-        distribute(-2, 2, 1)
-        distribute(-1, 2, 2)
-        distribute(0, 2, 4)
-        distribute(1, 2, 2)
-        distribute(2, 2, 1)
+          distribute(1, 0, 8)
+          distribute(2, 0, 4)
+          distribute(-2, 1, 2)
+          distribute(-1, 1, 4)
+          distribute(0, 1, 8)
+          distribute(1, 1, 4)
+          distribute(2, 1, 2)
+          distribute(-2, 2, 1)
+          distribute(-1, 2, 2)
+          distribute(0, 2, 4)
+          distribute(1, 2, 2)
+          distribute(2, 2, 1)
+        } else {
+          const newColor = gray < threshold ? dark : light
+          const newGray = gray < threshold ? 0 : 255
+          const error = (gray - newGray) * strength
+
+          data[idx] = newColor.r
+          data[idx + 1] = newColor.g
+          data[idx + 2] = newColor.b
+
+          const distribute = (dx: number, dy: number, factor: number) => {
+            if (x + dx >= 0 && x + dx < width && y + dy < height) {
+              const nextIdx = ((y + dy) * width + (x + dx)) * 4
+              data[nextIdx] += error * (factor / 42)
+              data[nextIdx + 1] += error * (factor / 42)
+              data[nextIdx + 2] += error * (factor / 42)
+            }
+          }
+
+          distribute(1, 0, 8)
+          distribute(2, 0, 4)
+          distribute(-2, 1, 2)
+          distribute(-1, 1, 4)
+          distribute(0, 1, 8)
+          distribute(1, 1, 4)
+          distribute(2, 1, 2)
+          distribute(-2, 2, 1)
+          distribute(-1, 2, 2)
+          distribute(0, 2, 4)
+          distribute(1, 2, 2)
+          distribute(2, 2, 1)
+        }
       }
     }
 
@@ -262,6 +377,7 @@ export default function DitherGenerator() {
     strength: number,
     darkColor: string,
     lightColor: string,
+    preserveColor: boolean,
   ): ImageData => {
     const data = new Uint8ClampedArray(imageData.data)
     const width = imageData.width
@@ -276,30 +392,59 @@ export default function DitherGenerator() {
         const oldG = data[idx + 1]
         const oldB = data[idx + 2]
         const gray = 0.299 * oldR + 0.587 * oldG + 0.114 * oldB
-        const newColor = gray < threshold ? dark : light
-        const newGray = gray < threshold ? 0 : 255
-        const error = (gray - newGray) * strength
 
-        data[idx] = newColor.r
-        data[idx + 1] = newColor.g
-        data[idx + 2] = newColor.b
+        if (preserveColor) {
+          const newGray = gray < threshold ? 0 : 255
+          const errorR = (oldR - newGray) * strength
+          const errorG = (oldG - newGray) * strength
+          const errorB = (oldB - newGray) * strength
 
-        const distribute = (dx: number, dy: number, factor: number) => {
-          if (x + dx >= 0 && x + dx < width && y + dy < height) {
-            const nextIdx = ((y + dy) * width + (x + dx)) * 4
-            data[nextIdx] += error * (factor / 32)
-            data[nextIdx + 1] += error * (factor / 32)
-            data[nextIdx + 2] += error * (factor / 32)
+          data[idx] = gray < threshold ? 0 : oldR
+          data[idx + 1] = gray < threshold ? 0 : oldG
+          data[idx + 2] = gray < threshold ? 0 : oldB
+
+          const distribute = (dx: number, dy: number, factor: number) => {
+            if (x + dx >= 0 && x + dx < width && y + dy < height) {
+              const nextIdx = ((y + dy) * width + (x + dx)) * 4
+              data[nextIdx] += errorR * (factor / 32)
+              data[nextIdx + 1] += errorG * (factor / 32)
+              data[nextIdx + 2] += errorB * (factor / 32)
+            }
           }
-        }
 
-        distribute(1, 0, 8)
-        distribute(2, 0, 4)
-        distribute(-2, 1, 2)
-        distribute(-1, 1, 4)
-        distribute(0, 1, 8)
-        distribute(1, 1, 4)
-        distribute(2, 1, 2)
+          distribute(1, 0, 8)
+          distribute(2, 0, 4)
+          distribute(-2, 1, 2)
+          distribute(-1, 1, 4)
+          distribute(0, 1, 8)
+          distribute(1, 1, 4)
+          distribute(2, 1, 2)
+        } else {
+          const newColor = gray < threshold ? dark : light
+          const newGray = gray < threshold ? 0 : 255
+          const error = (gray - newGray) * strength
+
+          data[idx] = newColor.r
+          data[idx + 1] = newColor.g
+          data[idx + 2] = newColor.b
+
+          const distribute = (dx: number, dy: number, factor: number) => {
+            if (x + dx >= 0 && x + dx < width && y + dy < height) {
+              const nextIdx = ((y + dy) * width + (x + dx)) * 4
+              data[nextIdx] += error * (factor / 32)
+              data[nextIdx + 1] += error * (factor / 32)
+              data[nextIdx + 2] += error * (factor / 32)
+            }
+          }
+
+          distribute(1, 0, 8)
+          distribute(2, 0, 4)
+          distribute(-2, 1, 2)
+          distribute(-1, 1, 4)
+          distribute(0, 1, 8)
+          distribute(1, 1, 4)
+          distribute(2, 1, 2)
+        }
       }
     }
 
@@ -312,6 +457,7 @@ export default function DitherGenerator() {
     strength: number,
     darkColor: string,
     lightColor: string,
+    preserveColor: boolean,
   ): ImageData => {
     const data = new Uint8ClampedArray(imageData.data)
     const width = imageData.width
@@ -326,33 +472,65 @@ export default function DitherGenerator() {
         const oldG = data[idx + 1]
         const oldB = data[idx + 2]
         const gray = 0.299 * oldR + 0.587 * oldG + 0.114 * oldB
-        const newColor = gray < threshold ? dark : light
-        const newGray = gray < threshold ? 0 : 255
-        const error = (gray - newGray) * strength
 
-        data[idx] = newColor.r
-        data[idx + 1] = newColor.g
-        data[idx + 2] = newColor.b
+        if (preserveColor) {
+          const newGray = gray < threshold ? 0 : 255
+          const errorR = (oldR - newGray) * strength
+          const errorG = (oldG - newGray) * strength
+          const errorB = (oldB - newGray) * strength
 
-        const distribute = (dx: number, dy: number, factor: number) => {
-          if (x + dx >= 0 && x + dx < width && y + dy < height) {
-            const nextIdx = ((y + dy) * width + (x + dx)) * 4
-            data[nextIdx] += error * (factor / 32)
-            data[nextIdx + 1] += error * (factor / 32)
-            data[nextIdx + 2] += error * (factor / 32)
+          data[idx] = gray < threshold ? 0 : oldR
+          data[idx + 1] = gray < threshold ? 0 : oldG
+          data[idx + 2] = gray < threshold ? 0 : oldB
+
+          const distribute = (dx: number, dy: number, factor: number) => {
+            if (x + dx >= 0 && x + dx < width && y + dy < height) {
+              const nextIdx = ((y + dy) * width + (x + dx)) * 4
+              data[nextIdx] += errorR * (factor / 32)
+              data[nextIdx + 1] += errorG * (factor / 32)
+              data[nextIdx + 2] += errorB * (factor / 32)
+            }
           }
-        }
 
-        distribute(1, 0, 5)
-        distribute(2, 0, 3)
-        distribute(-2, 1, 2)
-        distribute(-1, 1, 4)
-        distribute(0, 1, 5)
-        distribute(1, 1, 4)
-        distribute(2, 1, 2)
-        distribute(-1, 2, 2)
-        distribute(0, 2, 3)
-        distribute(1, 2, 2)
+          distribute(1, 0, 5)
+          distribute(2, 0, 3)
+          distribute(-2, 1, 2)
+          distribute(-1, 1, 4)
+          distribute(0, 1, 5)
+          distribute(1, 1, 4)
+          distribute(2, 1, 2)
+          distribute(-1, 2, 2)
+          distribute(0, 2, 3)
+          distribute(1, 2, 2)
+        } else {
+          const newColor = gray < threshold ? dark : light
+          const newGray = gray < threshold ? 0 : 255
+          const error = (gray - newGray) * strength
+
+          data[idx] = newColor.r
+          data[idx + 1] = newColor.g
+          data[idx + 2] = newColor.b
+
+          const distribute = (dx: number, dy: number, factor: number) => {
+            if (x + dx >= 0 && x + dx < width && y + dy < height) {
+              const nextIdx = ((y + dy) * width + (x + dx)) * 4
+              data[nextIdx] += error * (factor / 32)
+              data[nextIdx + 1] += error * (factor / 32)
+              data[nextIdx + 2] += error * (factor / 32)
+            }
+          }
+
+          distribute(1, 0, 5)
+          distribute(2, 0, 3)
+          distribute(-2, 1, 2)
+          distribute(-1, 1, 4)
+          distribute(0, 1, 5)
+          distribute(1, 1, 4)
+          distribute(2, 1, 2)
+          distribute(-1, 2, 2)
+          distribute(0, 2, 3)
+          distribute(1, 2, 2)
+        }
       }
     }
 
@@ -366,22 +544,23 @@ export default function DitherGenerator() {
     darkColor: string,
     lightColor: string,
     algorithm: DitherAlgorithm,
+    preserveColor: boolean,
   ): ImageData => {
     switch (algorithm) {
       case "floyd-steinberg":
-        return applyFloydSteinberg(imageData, threshold, strength, darkColor, lightColor)
+        return applyFloydSteinberg(imageData, threshold, strength, darkColor, lightColor, preserveColor)
       case "atkinson":
-        return applyAtkinson(imageData, threshold, strength, darkColor, lightColor)
+        return applyAtkinson(imageData, threshold, strength, darkColor, lightColor, preserveColor)
       case "ordered":
-        return applyOrdered(imageData, threshold, strength, darkColor, lightColor)
+        return applyOrdered(imageData, threshold, strength, darkColor, lightColor, preserveColor)
       case "stucki":
-        return applyStucki(imageData, threshold, strength, darkColor, lightColor)
+        return applyStucki(imageData, threshold, strength, darkColor, lightColor, preserveColor)
       case "burkes":
-        return applyBurkes(imageData, threshold, strength, darkColor, lightColor)
+        return applyBurkes(imageData, threshold, strength, darkColor, lightColor, preserveColor)
       case "sierra":
-        return applySierra(imageData, threshold, strength, darkColor, lightColor)
+        return applySierra(imageData, threshold, strength, darkColor, lightColor, preserveColor)
       default:
-        return applyFloydSteinberg(imageData, threshold, strength, darkColor, lightColor)
+        return applyFloydSteinberg(imageData, threshold, strength, darkColor, lightColor, preserveColor)
     }
   }
 
@@ -415,14 +594,22 @@ export default function DitherGenerator() {
       tempCtx.drawImage(img, 0, 0, scaledWidth, scaledHeight)
 
       const imageData = tempCtx.getImageData(0, 0, scaledWidth, scaledHeight)
-      const dithered = applyDither(imageData, threshold[0], ditherStrength[0], darkColor, lightColor, algorithm)
+      const dithered = applyDither(
+        imageData,
+        threshold[0],
+        ditherStrength[0],
+        darkColor,
+        lightColor,
+        algorithm,
+        preserveColor,
+      )
       tempCtx.putImageData(dithered, 0, 0)
 
       ctx.imageSmoothingEnabled = false
       ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height)
     }
     img.src = image
-  }, [image, threshold, ditherStrength, darkColor, lightColor, algorithm, scale])
+  }, [image, threshold, ditherStrength, darkColor, lightColor, algorithm, scale, preserveColor])
 
   const handleDownload = () => {
     if (!canvasRef.current) return
@@ -512,43 +699,60 @@ export default function DitherGenerator() {
               </div>
 
               <div className="space-y-3">
-                <Label className="uppercase text-xs font-bold tracking-wider block">[COLORS]</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <div className="text-xs uppercase font-bold text-muted-foreground">Dark</div>
-                    <input
-                      type="color"
-                      value={darkColor}
-                      onChange={(e) => setDarkColor(e.target.value)}
-                      className="h-16 w-full border-4 border-foreground cursor-pointer bg-background"
-                    />
-                    <input
-                      type="text"
-                      value={darkColor}
-                      onChange={(e) => setDarkColor(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border-2 border-foreground bg-background font-mono uppercase"
-                      placeholder="#000000"
-                    />
-                  </div>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={preserveColor}
+                    onChange={(e) => setPreserveColor(e.target.checked)}
+                    className="w-5 h-5 border-4 border-foreground cursor-pointer accent-black"
+                  />
+                  <span className="uppercase text-xs font-bold tracking-wider">[PRESERVE_ORIGINAL_COLORS]</span>
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Keep image colors instead of using dark/light colors
+                </p>
+              </div>
 
-                  <div className="space-y-2">
-                    <div className="text-xs uppercase font-bold text-muted-foreground">Light</div>
-                    <input
-                      type="color"
-                      value={lightColor}
-                      onChange={(e) => setLightColor(e.target.value)}
-                      className="h-16 w-full border-4 border-foreground cursor-pointer bg-background"
-                    />
-                    <input
-                      type="text"
-                      value={lightColor}
-                      onChange={(e) => setLightColor(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border-2 border-foreground bg-background font-mono uppercase"
-                      placeholder="#ffffff"
-                    />
+              {!preserveColor && (
+                <div className="space-y-3">
+                  <Label className="uppercase text-xs font-bold tracking-wider block">[COLORS]</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="text-xs uppercase font-bold text-muted-foreground">Dark</div>
+                      <input
+                        type="color"
+                        value={darkColor}
+                        onChange={(e) => setDarkColor(e.target.value)}
+                        className="h-16 w-full border-4 border-foreground cursor-pointer bg-background"
+                      />
+                      <input
+                        type="text"
+                        value={darkColor}
+                        onChange={(e) => setDarkColor(e.target.value)}
+                        className="w-full px-3 py-2 text-xs border-2 border-foreground bg-background font-mono uppercase"
+                        placeholder="#000000"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="text-xs uppercase font-bold text-muted-foreground">Light</div>
+                      <input
+                        type="color"
+                        value={lightColor}
+                        onChange={(e) => setLightColor(e.target.value)}
+                        className="h-16 w-full border-4 border-foreground cursor-pointer bg-background"
+                      />
+                      <input
+                        type="text"
+                        value={lightColor}
+                        onChange={(e) => setLightColor(e.target.value)}
+                        className="w-full px-3 py-2 text-xs border-2 border-foreground bg-background font-mono uppercase"
+                        placeholder="#ffffff"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
