@@ -12,7 +12,20 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { UploadSimple, DownloadSimple, Sun, Moon } from "@phosphor-icons/react"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
+import {
+  UploadSimple,
+  DownloadSimple,
+  Sun,
+  Moon,
+  SlidersHorizontal,
+} from "@phosphor-icons/react"
 import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
 
@@ -63,7 +76,7 @@ function diffuseError(
   h: number,
   ch: number,
   err: number,
-  algo: DitherAlgorithm,
+  algo: DitherAlgorithm
 ) {
   const add = (nx: number, ny: number, frac: number) => {
     if (nx < 0 || nx >= w || ny < 0 || ny >= h) return
@@ -134,9 +147,17 @@ function renderDither(
     lightColor: string
     preserveColor: boolean
     scale: number
-  },
+  }
 ) {
-  const { algorithm, threshold, strength, darkColor, lightColor, preserveColor, scale } = opts
+  const {
+    algorithm,
+    threshold,
+    strength,
+    darkColor,
+    lightColor,
+    preserveColor,
+    scale,
+  } = opts
   const origW = img.naturalWidth
   const origH = img.naturalHeight
 
@@ -188,11 +209,23 @@ function renderDither(
         // Each channel thresholded independently
         for (let ch = 0; ch < 3; ch++) {
           const orig = d[i + ch]
-          const val = Math.min(255, Math.max(0, orig + errors[(y * sw + x) * 3 + ch]))
+          const val = Math.min(
+            255,
+            Math.max(0, orig + errors[(y * sw + x) * 3 + ch])
+          )
           const isDark = val < threshold
           const quantized = isDark ? 0 : orig
           d[i + ch] = quantized
-          diffuseError(errors, x, y, sw, sh, ch, (val - quantized) * strength, algorithm)
+          diffuseError(
+            errors,
+            x,
+            y,
+            sw,
+            sh,
+            ch,
+            (val - quantized) * strength,
+            algorithm
+          )
         }
       } else {
         // Grayscale threshold, output dark/light color
@@ -228,7 +261,7 @@ function renderDither(
 function SectionDivider({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-2 py-1">
-      <span className="text-[9px] tracking-[0.2em] uppercase text-muted-foreground/60 shrink-0">
+      <span className="shrink-0 text-[9px] tracking-[0.2em] text-muted-foreground/60 uppercase">
         {label}
       </span>
       <div className="h-px flex-1 bg-border" />
@@ -249,9 +282,13 @@ function ControlRow({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between">
-        <span className="text-[9px] tracking-[0.15em] uppercase text-foreground/60">{label}</span>
+        <span className="text-[9px] tracking-[0.15em] text-foreground/60 uppercase">
+          {label}
+        </span>
         {value && (
-          <span className="text-[10px] tabular-nums text-muted-foreground">{value}</span>
+          <span className="text-[10px] text-muted-foreground tabular-nums">
+            {value}
+          </span>
         )}
       </div>
       {children}
@@ -259,10 +296,205 @@ function ControlRow({
   )
 }
 
+// ─── Controls content (shared between desktop panel and mobile sheet) ────────
+type ControlsContentProps = {
+  algorithm: DitherAlgorithm
+  setAlgorithm: (v: DitherAlgorithm) => void
+  threshold: number[]
+  setThreshold: (v: number[]) => void
+  ditherStrength: number[]
+  setDitherStrength: (v: number[]) => void
+  scale: number[]
+  setScale: (v: number[]) => void
+  preserveColor: boolean
+  setPreserveColor: (v: boolean) => void
+  darkColor: string
+  setDarkColor: (v: string) => void
+  lightColor: string
+  setLightColor: (v: string) => void
+  onUpload: () => void
+  onDownload: () => void
+  imageUrl: string | null
+  fileInputRef: React.RefObject<HTMLInputElement | null>
+  showActions?: boolean
+}
+
+function ControlsContent({
+  algorithm,
+  setAlgorithm,
+  threshold,
+  setThreshold,
+  ditherStrength,
+  setDitherStrength,
+  scale,
+  setScale,
+  preserveColor,
+  setPreserveColor,
+  darkColor,
+  setDarkColor,
+  lightColor,
+  setLightColor,
+  onUpload,
+  onDownload,
+  imageUrl,
+  fileInputRef,
+  showActions = true,
+}: ControlsContentProps) {
+  return (
+    <>
+      <div className="flex flex-col gap-4 p-4 pb-2">
+        <ControlRow label="Algorithm">
+          <Select
+            value={algorithm}
+            onValueChange={(v) => setAlgorithm(v as DitherAlgorithm)}
+          >
+            <SelectTrigger className="h-7 text-[11px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ALGORITHMS.map((a) => (
+                <SelectItem
+                  key={a.value}
+                  value={a.value}
+                  className="text-[11px]"
+                >
+                  {a.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </ControlRow>
+
+        <SectionDivider label="Parameters" />
+
+        <ControlRow label="Threshold" value={String(threshold[0])}>
+          <Slider
+            min={0}
+            max={255}
+            step={1}
+            value={threshold}
+            onValueChange={setThreshold}
+          />
+        </ControlRow>
+
+        <ControlRow label="Strength" value={ditherStrength[0].toFixed(2)}>
+          <Slider
+            min={0}
+            max={1}
+            step={0.01}
+            value={ditherStrength}
+            onValueChange={setDitherStrength}
+          />
+        </ControlRow>
+
+        <ControlRow label="Dot Size" value={`${scale[0]}%`}>
+          <Slider
+            min={5}
+            max={100}
+            step={1}
+            value={scale}
+            onValueChange={setScale}
+          />
+        </ControlRow>
+
+        <SectionDivider label="Output" />
+
+        <div className="flex items-center justify-between">
+          <Label
+            htmlFor="preserve-color"
+            className="cursor-pointer text-[9px] tracking-[0.15em] text-foreground/60 uppercase"
+          >
+            Preserve Colors
+          </Label>
+          <Switch
+            id="preserve-color"
+            checked={preserveColor}
+            onCheckedChange={setPreserveColor}
+          />
+        </div>
+
+        {!preserveColor && (
+          <div className="flex flex-col gap-2.5">
+            <label className="group flex cursor-pointer items-center gap-2.5">
+              <div className="relative h-5 w-5 shrink-0 overflow-hidden border border-border">
+                <input
+                  type="color"
+                  value={darkColor}
+                  onChange={(e) => setDarkColor(e.target.value)}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                />
+                <div
+                  className="h-full w-full"
+                  style={{ backgroundColor: darkColor }}
+                />
+              </div>
+              <span className="text-[9px] tracking-[0.15em] text-foreground/60 uppercase">
+                Dark
+              </span>
+              <span className="ml-auto text-[10px] text-muted-foreground tabular-nums transition-colors group-hover:text-foreground">
+                {darkColor.toUpperCase()}
+              </span>
+            </label>
+
+            <label className="group flex cursor-pointer items-center gap-2.5">
+              <div className="relative h-5 w-5 shrink-0 overflow-hidden border border-border">
+                <input
+                  type="color"
+                  value={lightColor}
+                  onChange={(e) => setLightColor(e.target.value)}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                />
+                <div
+                  className="h-full w-full"
+                  style={{ backgroundColor: lightColor }}
+                />
+              </div>
+              <span className="text-[9px] tracking-[0.15em] text-foreground/60 uppercase">
+                Light
+              </span>
+              <span className="ml-auto text-[10px] text-muted-foreground tabular-nums transition-colors group-hover:text-foreground">
+                {lightColor.toUpperCase()}
+              </span>
+            </label>
+          </div>
+        )}
+      </div>
+
+      {showActions && (
+        <div className="mt-auto flex flex-col gap-2 border-t border-border p-4">
+          <Button
+            variant="default"
+            className="h-8 w-full gap-2 text-[11px] tracking-[0.05em] uppercase"
+            onClick={onDownload}
+            disabled={!imageUrl}
+          >
+            <DownloadSimple size={12} weight="regular" />
+            Download PNG
+          </Button>
+          <Button
+            variant="outline"
+            className="h-8 w-full gap-2 text-[11px] tracking-[0.05em] uppercase"
+            onClick={onUpload}
+          >
+            <UploadSimple size={12} weight="regular" />
+            Upload Image
+          </Button>
+          <p className="text-center text-[9px] tracking-wider text-muted-foreground/50">
+            or paste · drag & drop
+          </p>
+        </div>
+      )}
+    </>
+  )
+}
+
 // ─── Main component ──────────────────────────────────────────────────────────
 export default function DitherGenerator() {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
-  const [imageDimensions, setImageDimensions] = useState<{ w: number; h: number } | null>(null)
+  const [imageDimensions, setImageDimensions] = useState<{
+    w: number
+    h: number
+  } | null>(null)
   const [imgLoaded, setImgLoaded] = useState(false)
   const [algorithm, setAlgorithm] = useState<DitherAlgorithm>("floyd-steinberg")
   const [threshold, setThreshold] = useState([128])
@@ -277,6 +509,8 @@ export default function DitherGenerator() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const imgRef = useRef<HTMLImageElement | null>(null)
   const { resolvedTheme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   // Load image when URL changes
   useEffect(() => {
@@ -306,7 +540,16 @@ export default function DitherGenerator() {
       preserveColor,
       scale: scale[0],
     })
-  }, [imgLoaded, algorithm, threshold, ditherStrength, darkColor, lightColor, preserveColor, scale])
+  }, [
+    imgLoaded,
+    algorithm,
+    threshold,
+    ditherStrength,
+    darkColor,
+    lightColor,
+    preserveColor,
+    scale,
+  ])
 
   const handleFileSelect = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) return
@@ -323,7 +566,7 @@ export default function DitherGenerator() {
       if (file) handleFileSelect(file)
       e.target.value = ""
     },
-    [handleFileSelect],
+    [handleFileSelect]
   )
 
   const handleDrop = useCallback(
@@ -333,7 +576,7 @@ export default function DitherGenerator() {
       const file = e.dataTransfer.files?.[0]
       if (file) handleFileSelect(file)
     },
-    [handleFileSelect],
+    [handleFileSelect]
   )
 
   const handleDownload = useCallback(() => {
@@ -352,7 +595,7 @@ export default function DitherGenerator() {
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
       const item = Array.from(e.clipboardData?.items ?? []).find((i) =>
-        i.type.startsWith("image/"),
+        i.type.startsWith("image/")
       )
       if (item) handleFileSelect(item.getAsFile()!)
     }
@@ -365,11 +608,11 @@ export default function DitherGenerator() {
       {/* ── Header ─────────────────────────────────────────────── */}
       <header className="flex h-10 shrink-0 items-center justify-between border-b border-border px-4">
         <div className="flex items-center gap-4">
-          <span className="text-[11px] tracking-[0.3em] uppercase font-medium">
+          <span className="text-[11px] font-medium tracking-[0.3em] uppercase">
             DITHER_GEN
           </span>
           {imageUrl && imageDimensions && (
-            <span className="text-[9px] tracking-[0.15em] text-muted-foreground tabular-nums hidden sm:block">
+            <span className="hidden text-[9px] tracking-[0.15em] text-muted-foreground tabular-nums sm:block">
               {imageDimensions.w} × {imageDimensions.h}
             </span>
           )}
@@ -381,7 +624,7 @@ export default function DitherGenerator() {
           onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
           title="Toggle theme"
         >
-          {resolvedTheme === "dark" ? (
+          {mounted && resolvedTheme === "dark" ? (
             <Sun size={13} weight="regular" />
           ) : (
             <Moon size={13} weight="regular" />
@@ -391,214 +634,171 @@ export default function DitherGenerator() {
 
       {/* ── Body ───────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Controls panel */}
-        <aside className="flex w-63 shrink-0 flex-col overflow-y-auto border-r border-border">
-          <div className="flex flex-col gap-4 p-4 pb-2">
-            {/* Algorithm */}
-            <ControlRow label="Algorithm">
-              <Select
-                value={algorithm}
-                onValueChange={(v) => setAlgorithm(v as DitherAlgorithm)}
-              >
-                <SelectTrigger className="h-7 text-[11px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ALGORITHMS.map((a) => (
-                    <SelectItem key={a.value} value={a.value} className="text-[11px]">
-                      {a.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </ControlRow>
-
-            <SectionDivider label="Parameters" />
-
-            {/* Threshold */}
-            <ControlRow label="Threshold" value={String(threshold[0])}>
-              <Slider
-                min={0}
-                max={255}
-                step={1}
-                value={threshold}
-                onValueChange={setThreshold}
-              />
-            </ControlRow>
-
-            {/* Strength */}
-            <ControlRow label="Strength" value={ditherStrength[0].toFixed(2)}>
-              <Slider
-                min={0}
-                max={1}
-                step={0.01}
-                value={ditherStrength}
-                onValueChange={setDitherStrength}
-              />
-            </ControlRow>
-
-            {/* Dot size */}
-            <ControlRow label="Dot Size" value={`${scale[0]}%`}>
-              <Slider
-                min={5}
-                max={100}
-                step={1}
-                value={scale}
-                onValueChange={setScale}
-              />
-            </ControlRow>
-
-            <SectionDivider label="Output" />
-
-            {/* Preserve color */}
-            <div className="flex items-center justify-between">
-              <Label
-                htmlFor="preserve-color"
-                className="cursor-pointer text-[9px] tracking-[0.15em] uppercase text-foreground/60"
-              >
-                Preserve Colors
-              </Label>
-              <Switch
-                id="preserve-color"
-                checked={preserveColor}
-                onCheckedChange={setPreserveColor}
-              />
-            </div>
-
-            {/* Color pickers */}
-            {!preserveColor && (
-              <div className="flex flex-col gap-2.5">
-                <label className="flex cursor-pointer items-center gap-2.5 group">
-                  <div className="relative h-5 w-5 shrink-0 overflow-hidden border border-border">
-                    <input
-                      type="color"
-                      value={darkColor}
-                      onChange={(e) => setDarkColor(e.target.value)}
-                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                    />
-                    <div
-                      className="h-full w-full"
-                      style={{ backgroundColor: darkColor }}
-                    />
-                  </div>
-                  <span className="text-[9px] tracking-[0.15em] uppercase text-foreground/60">
-                    Dark
-                  </span>
-                  <span className="ml-auto text-[10px] tabular-nums text-muted-foreground group-hover:text-foreground transition-colors">
-                    {darkColor.toUpperCase()}
-                  </span>
-                </label>
-
-                <label className="flex cursor-pointer items-center gap-2.5 group">
-                  <div className="relative h-5 w-5 shrink-0 overflow-hidden border border-border">
-                    <input
-                      type="color"
-                      value={lightColor}
-                      onChange={(e) => setLightColor(e.target.value)}
-                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                    />
-                    <div
-                      className="h-full w-full"
-                      style={{ backgroundColor: lightColor }}
-                    />
-                  </div>
-                  <span className="text-[9px] tracking-[0.15em] uppercase text-foreground/60">
-                    Light
-                  </span>
-                  <span className="ml-auto text-[10px] tabular-nums text-muted-foreground group-hover:text-foreground transition-colors">
-                    {lightColor.toUpperCase()}
-                  </span>
-                </label>
-              </div>
-            )}
-          </div>
-
-          {/* Actions — pinned to bottom */}
-          <div className="mt-auto border-t border-border p-4 flex flex-col gap-2">
-            <Button
-              variant="default"
-              className="w-full gap-2 text-[11px] h-8 tracking-[0.05em] uppercase"
-              onClick={handleDownload}
-              disabled={!imageUrl}
-            >
-              <DownloadSimple size={12} weight="regular" />
-              Download PNG
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full gap-2 text-[11px] h-8 tracking-[0.05em] uppercase"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <UploadSimple size={12} weight="regular" />
-              Upload Image
-            </Button>
-            <p className="text-center text-[9px] text-muted-foreground/50 tracking-wider">
-              or paste · drag & drop
-            </p>
-          </div>
+        {/* Desktop controls panel */}
+        <aside className="hidden w-63 shrink-0 flex-col overflow-y-auto border-r border-border md:flex">
+          <ControlsContent
+            algorithm={algorithm}
+            setAlgorithm={setAlgorithm}
+            threshold={threshold}
+            setThreshold={setThreshold}
+            ditherStrength={ditherStrength}
+            setDitherStrength={setDitherStrength}
+            scale={scale}
+            setScale={setScale}
+            preserveColor={preserveColor}
+            setPreserveColor={setPreserveColor}
+            darkColor={darkColor}
+            setDarkColor={setDarkColor}
+            lightColor={lightColor}
+            setLightColor={setLightColor}
+            onUpload={() => fileInputRef.current?.click()}
+            onDownload={handleDownload}
+            imageUrl={imageUrl}
+            fileInputRef={fileInputRef}
+          />
         </aside>
 
         {/* Canvas area */}
         <main
-          className="relative flex flex-1 items-center justify-center overflow-auto"
+          className="relative flex flex-1 flex-col overflow-hidden"
           style={{
-            backgroundImage: "radial-gradient(circle, var(--border) 1px, transparent 1px)",
+            backgroundImage:
+              "radial-gradient(circle, var(--border) 1px, transparent 1px)",
             backgroundSize: "20px 20px",
           }}
-          onDragOver={(e) => {
-            e.preventDefault()
-            setIsDragging(true)
-          }}
-          onDragLeave={(e) => {
-            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-              setIsDragging(false)
-            }
-          }}
-          onDrop={handleDrop}
         >
-          {imageUrl ? (
-            <div className="relative m-8">
-              <canvas
-                ref={canvasRef}
-                className="block max-h-[calc(100vh-6rem)] max-w-full shadow-md"
-                style={{ imageRendering: "pixelated" }}
-              />
-            </div>
-          ) : (
-            <div
-              className={cn(
-                "flex cursor-pointer flex-col items-center gap-4 border border-dashed border-border px-20 py-14 transition-all duration-150",
-                isDragging && "border-foreground bg-foreground/5 scale-[1.02]",
-              )}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <UploadSimple
-                size={32}
-                weight="thin"
+          {/* Scrollable canvas area */}
+          <div
+            className="relative flex flex-1 items-center justify-center overflow-auto"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle, var(--border) 1px, transparent 1px)",
+              backgroundSize: "20px 20px",
+            }}
+            onDragOver={(e) => {
+              e.preventDefault()
+              setIsDragging(true)
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                setIsDragging(false)
+              }
+            }}
+            onDrop={handleDrop}
+          >
+            {imageUrl ? (
+              <div className="relative m-8">
+                <canvas
+                  ref={canvasRef}
+                  className="block max-h-[calc(100vh-6rem)] max-w-full shadow-md"
+                  style={{ imageRendering: "pixelated" }}
+                />
+              </div>
+            ) : (
+              <div
                 className={cn(
-                  "text-muted-foreground transition-colors",
-                  isDragging && "text-foreground",
+                  "mx-4 flex cursor-pointer flex-col items-center gap-4 border border-dashed border-border px-12 py-14 transition-all duration-150 sm:px-20",
+                  isDragging && "scale-[1.02] border-foreground bg-foreground/5"
                 )}
-              />
-              <div className="flex flex-col items-center gap-1.5 text-center">
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <UploadSimple
+                  size={32}
+                  weight="thin"
+                  className={cn(
+                    "text-muted-foreground transition-colors",
+                    isDragging && "text-foreground"
+                  )}
+                />
+                <div className="flex flex-col items-center gap-1.5 text-center">
+                  <span className="text-[11px] tracking-[0.25em] uppercase">
+                    {isDragging ? "Release to upload" : "Drop image here"}
+                  </span>
+                  <span className="text-[9px] tracking-[0.2em] text-muted-foreground uppercase">
+                    or click to browse · paste from clipboard
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Drag-over overlay when image already loaded */}
+            {isDragging && imageUrl && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center border-2 border-dashed border-foreground bg-background/80 backdrop-blur-sm">
                 <span className="text-[11px] tracking-[0.25em] uppercase">
-                  {isDragging ? "Release to upload" : "Drop image here"}
-                </span>
-                <span className="text-[9px] tracking-[0.2em] uppercase text-muted-foreground">
-                  or click to browse · paste from clipboard
+                  Release to replace image
                 </span>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Drag-over overlay when image already loaded */}
-          {isDragging && imageUrl && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center border-2 border-dashed border-foreground bg-background/80 backdrop-blur-sm">
-              <span className="text-[11px] tracking-[0.25em] uppercase">
-                Release to replace image
-              </span>
-            </div>
-          )}
+          {/* Mobile bottom bar */}
+          <div className="flex shrink-0 items-center gap-2 border-t border-border p-3 md:hidden">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 flex-1 gap-2 text-[11px] tracking-[0.05em] uppercase"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <UploadSimple size={12} weight="regular" />
+              Upload
+            </Button>
+
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 shrink-0"
+                >
+                  <SlidersHorizontal size={14} weight="regular" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent
+                side="bottom"
+                className="flex h-[85dvh] flex-col p-0"
+              >
+                <SheetHeader className="shrink-0 px-4 pt-4 pb-0">
+                  <SheetTitle className="text-left text-[11px] tracking-[0.25em] uppercase">
+                    Settings
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="flex-1 overflow-y-auto pb-20">
+                  <ControlsContent
+                    algorithm={algorithm}
+                    setAlgorithm={setAlgorithm}
+                    threshold={threshold}
+                    setThreshold={setThreshold}
+                    ditherStrength={ditherStrength}
+                    setDitherStrength={setDitherStrength}
+                    scale={scale}
+                    setScale={setScale}
+                    preserveColor={preserveColor}
+                    setPreserveColor={setPreserveColor}
+                    darkColor={darkColor}
+                    setDarkColor={setDarkColor}
+                    lightColor={lightColor}
+                    setLightColor={setLightColor}
+                    onUpload={() => fileInputRef.current?.click()}
+                    onDownload={handleDownload}
+                    imageUrl={imageUrl}
+                    fileInputRef={fileInputRef}
+                    showActions={false}
+                  />
+                </div>
+              </SheetContent>
+            </Sheet>
+
+            <Button
+              variant="default"
+              size="sm"
+              className="h-9 flex-1 gap-2 text-[11px] tracking-[0.05em] uppercase"
+              onClick={handleDownload}
+              disabled={!imageUrl}
+            >
+              <DownloadSimple size={12} weight="regular" />
+              Download
+            </Button>
+          </div>
         </main>
       </div>
 
