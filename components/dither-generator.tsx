@@ -25,6 +25,8 @@ import {
   Sun,
   Moon,
   SlidersHorizontal,
+  Eye,
+  EyeSlash,
 } from "@phosphor-icons/react"
 import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
@@ -147,6 +149,8 @@ function renderDither(
     lightColor: string
     preserveColor: boolean
     scale: number
+    darkTransparent: boolean
+    lightTransparent: boolean
   }
 ) {
   const {
@@ -157,6 +161,8 @@ function renderDither(
     lightColor,
     preserveColor,
     scale,
+    darkTransparent,
+    lightTransparent,
   } = opts
   const origW = img.naturalWidth
   const origH = img.naturalHeight
@@ -198,11 +204,23 @@ function renderDither(
           d[i + 1] = isDark ? dark.g : light.g
           d[i + 2] = isDark ? dark.b : light.b
         }
-        d[i + 3] = 255
+        d[i + 3] = isDark
+          ? darkTransparent
+            ? 0
+            : 255
+          : lightTransparent
+            ? 0
+            : 255
         continue
       }
 
       if (preserveColor) {
+        const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]
+        const grayVal = Math.min(
+          255,
+          Math.max(0, gray + errors[(y * sw + x) * 3])
+        )
+        const isDarkOverall = grayVal < threshold
         for (let ch = 0; ch < 3; ch++) {
           const orig = d[i + ch]
           const val = Math.min(
@@ -223,6 +241,13 @@ function renderDither(
             algorithm
           )
         }
+        d[i + 3] = isDarkOverall
+          ? darkTransparent
+            ? 0
+            : 255
+          : lightTransparent
+            ? 0
+            : 255
       } else {
         const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]
         const val = Math.min(255, Math.max(0, gray + errors[(y * sw + x) * 3]))
@@ -233,12 +258,18 @@ function renderDither(
         d[i] = isDark ? dark.r : light.r
         d[i + 1] = isDark ? dark.g : light.g
         d[i + 2] = isDark ? dark.b : light.b
+        d[i + 3] = isDark
+          ? darkTransparent
+            ? 0
+            : 255
+          : lightTransparent
+            ? 0
+            : 255
 
         for (let ch = 0; ch < 3; ch++) {
           diffuseError(errors, x, y, sw, sh, ch, err, algorithm)
         }
       }
-      d[i + 3] = 255
     }
   }
 
@@ -301,8 +332,12 @@ type ControlsContentProps = {
   setPreserveColor: (v: boolean) => void
   darkColor: string
   setDarkColor: (v: string) => void
+  darkTransparent: boolean
+  setDarkTransparent: (v: boolean) => void
   lightColor: string
   setLightColor: (v: string) => void
+  lightTransparent: boolean
+  setLightTransparent: (v: boolean) => void
   onUpload: () => void
   onDownload: () => void
   imageUrl: string | null
@@ -323,8 +358,12 @@ function ControlsContent({
   setPreserveColor,
   darkColor,
   setDarkColor,
+  darkTransparent,
+  setDarkTransparent,
   lightColor,
   setLightColor,
+  lightTransparent,
+  setLightTransparent,
   onUpload,
   onDownload,
   imageUrl,
@@ -406,47 +445,111 @@ function ControlsContent({
 
         {!preserveColor && (
           <div className="flex flex-col gap-2.5">
-            <label className="group flex cursor-pointer items-center gap-2.5">
-              <div className="relative h-5 w-5 shrink-0 overflow-hidden border border-border">
-                <input
-                  type="color"
-                  value={darkColor}
-                  onChange={(e) => setDarkColor(e.target.value)}
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                />
+            <div className="flex items-center gap-2.5">
+              <label className="group flex flex-1 cursor-pointer items-center gap-2.5">
                 <div
-                  className="h-full w-full"
-                  style={{ backgroundColor: darkColor }}
-                />
-              </div>
-              <span className="text-[9px] tracking-[0.15em] text-foreground/60 uppercase">
-                Dark
-              </span>
-              <span className="ml-auto text-[10px] text-muted-foreground tabular-nums transition-colors group-hover:text-foreground">
-                {darkColor.toUpperCase()}
-              </span>
-            </label>
+                  className="relative h-5 w-5 shrink-0 overflow-hidden border border-border"
+                  style={{
+                    backgroundImage: darkTransparent
+                      ? "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)"
+                      : undefined,
+                    backgroundSize: darkTransparent ? "6px 6px" : undefined,
+                    backgroundPosition: darkTransparent
+                      ? "0 0, 0 3px, 3px -3px, -3px 0px"
+                      : undefined,
+                  }}
+                >
+                  <input
+                    type="color"
+                    value={darkColor}
+                    onChange={(e) => setDarkColor(e.target.value)}
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  />
+                  <div
+                    className="h-full w-full"
+                    style={{
+                      backgroundColor: darkColor,
+                      opacity: darkTransparent ? 0 : 1,
+                    }}
+                  />
+                </div>
+                <span className="text-[9px] tracking-[0.15em] text-foreground/60 uppercase">
+                  Dark
+                </span>
+                <span className="ml-auto text-[10px] text-muted-foreground tabular-nums transition-colors group-hover:text-foreground">
+                  {darkColor.toUpperCase()}
+                </span>
+              </label>
+              <button
+                type="button"
+                onClick={() => setDarkTransparent(!darkTransparent)}
+                className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+                title={
+                  darkTransparent
+                    ? "Dark color: transparent"
+                    : "Dark color: opaque"
+                }
+              >
+                {darkTransparent ? (
+                  <EyeSlash size={13} weight="regular" />
+                ) : (
+                  <Eye size={13} weight="regular" />
+                )}
+              </button>
+            </div>
 
-            <label className="group flex cursor-pointer items-center gap-2.5">
-              <div className="relative h-5 w-5 shrink-0 overflow-hidden border border-border">
-                <input
-                  type="color"
-                  value={lightColor}
-                  onChange={(e) => setLightColor(e.target.value)}
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                />
+            <div className="flex items-center gap-2.5">
+              <label className="group flex flex-1 cursor-pointer items-center gap-2.5">
                 <div
-                  className="h-full w-full"
-                  style={{ backgroundColor: lightColor }}
-                />
-              </div>
-              <span className="text-[9px] tracking-[0.15em] text-foreground/60 uppercase">
-                Light
-              </span>
-              <span className="ml-auto text-[10px] text-muted-foreground tabular-nums transition-colors group-hover:text-foreground">
-                {lightColor.toUpperCase()}
-              </span>
-            </label>
+                  className="relative h-5 w-5 shrink-0 overflow-hidden border border-border"
+                  style={{
+                    backgroundImage: lightTransparent
+                      ? "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)"
+                      : undefined,
+                    backgroundSize: lightTransparent ? "6px 6px" : undefined,
+                    backgroundPosition: lightTransparent
+                      ? "0 0, 0 3px, 3px -3px, -3px 0px"
+                      : undefined,
+                  }}
+                >
+                  <input
+                    type="color"
+                    value={lightColor}
+                    onChange={(e) => setLightColor(e.target.value)}
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  />
+                  <div
+                    className="h-full w-full"
+                    style={{
+                      backgroundColor: lightColor,
+                      opacity: lightTransparent ? 0 : 1,
+                    }}
+                  />
+                </div>
+                <span className="text-[9px] tracking-[0.15em] text-foreground/60 uppercase">
+                  Light
+                </span>
+                <span className="ml-auto text-[10px] text-muted-foreground tabular-nums transition-colors group-hover:text-foreground">
+                  {lightColor.toUpperCase()}
+                </span>
+              </label>
+              <button
+                type="button"
+                onClick={() => setLightTransparent(!lightTransparent)}
+                className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+                title={
+                  lightTransparent
+                    ? "Light color: transparent"
+                    : "Light color: opaque"
+                }
+              >
+                {lightTransparent ? (
+                  <EyeSlash size={13} weight="regular" />
+                ) : (
+                  <Eye size={13} weight="regular" />
+                )}
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -491,7 +594,9 @@ export default function DitherGenerator() {
   const [ditherStrength, setDitherStrength] = useState([0.5])
   const [scale, setScale] = useState([100])
   const [darkColor, setDarkColor] = useState("#000000")
+  const [darkTransparent, setDarkTransparent] = useState(false)
   const [lightColor, setLightColor] = useState("#ffffff")
+  const [lightTransparent, setLightTransparent] = useState(false)
   const [preserveColor, setPreserveColor] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
 
@@ -527,6 +632,8 @@ export default function DitherGenerator() {
       lightColor,
       preserveColor,
       scale: scale[0],
+      darkTransparent,
+      lightTransparent,
     })
   }, [
     imgLoaded,
@@ -534,7 +641,9 @@ export default function DitherGenerator() {
     threshold,
     ditherStrength,
     darkColor,
+    darkTransparent,
     lightColor,
+    lightTransparent,
     preserveColor,
     scale,
   ])
@@ -633,8 +742,12 @@ export default function DitherGenerator() {
             setPreserveColor={setPreserveColor}
             darkColor={darkColor}
             setDarkColor={setDarkColor}
+            darkTransparent={darkTransparent}
+            setDarkTransparent={setDarkTransparent}
             lightColor={lightColor}
             setLightColor={setLightColor}
+            lightTransparent={lightTransparent}
+            setLightTransparent={setLightTransparent}
             onUpload={() => fileInputRef.current?.click()}
             onDownload={handleDownload}
             imageUrl={imageUrl}
@@ -749,8 +862,12 @@ export default function DitherGenerator() {
                     setPreserveColor={setPreserveColor}
                     darkColor={darkColor}
                     setDarkColor={setDarkColor}
+                    darkTransparent={darkTransparent}
+                    setDarkTransparent={setDarkTransparent}
                     lightColor={lightColor}
                     setLightColor={setLightColor}
+                    lightTransparent={lightTransparent}
+                    setLightTransparent={setLightTransparent}
                     onUpload={() => fileInputRef.current?.click()}
                     onDownload={handleDownload}
                     imageUrl={imageUrl}
