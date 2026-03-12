@@ -165,7 +165,6 @@ function renderDither(
   const sw = Math.max(1, Math.floor(origW * scaleFactor))
   const sh = Math.max(1, Math.floor(origH * scaleFactor))
 
-  // Draw to temp canvas at scaled size
   const tmp = document.createElement("canvas")
   tmp.width = sw
   tmp.height = sh
@@ -194,7 +193,6 @@ function renderDither(
             d[i + 1] = 0
             d[i + 2] = 0
           }
-          // else keep original channels
         } else {
           d[i] = isDark ? dark.r : light.r
           d[i + 1] = isDark ? dark.g : light.g
@@ -204,9 +202,7 @@ function renderDither(
         continue
       }
 
-      // Error diffusion algorithms
       if (preserveColor) {
-        // Each channel thresholded independently
         for (let ch = 0; ch < 3; ch++) {
           const orig = d[i + ch]
           const val = Math.min(
@@ -228,7 +224,6 @@ function renderDither(
           )
         }
       } else {
-        // Grayscale threshold, output dark/light color
         const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]
         const val = Math.min(255, Math.max(0, gray + errors[(y * sw + x) * 3]))
         const isDark = val < threshold
@@ -249,7 +244,6 @@ function renderDither(
 
   tCtx.putImageData(imageData, 0, 0)
 
-  // Upscale to output canvas with pixel-perfect rendering
   canvas.width = origW
   canvas.height = origH
   const ctx = canvas.getContext("2d")!
@@ -257,7 +251,6 @@ function renderDither(
   ctx.drawImage(tmp, 0, 0, origW, origH)
 }
 
-// ─── Labelled section divider ───────────────────────────────────────────────
 function SectionDivider({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-2 py-1">
@@ -269,7 +262,6 @@ function SectionDivider({ label }: { label: string }) {
   )
 }
 
-// ─── Labelled control row ────────────────────────────────────────────────────
 function ControlRow({
   label,
   value,
@@ -296,7 +288,6 @@ function ControlRow({
   )
 }
 
-// ─── Controls content (shared between desktop panel and mobile sheet) ────────
 type ControlsContentProps = {
   algorithm: DitherAlgorithm
   setAlgorithm: (v: DitherAlgorithm) => void
@@ -488,7 +479,6 @@ function ControlsContent({
   )
 }
 
-// ─── Main component ──────────────────────────────────────────────────────────
 export default function DitherGenerator() {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [imageDimensions, setImageDimensions] = useState<{
@@ -512,7 +502,6 @@ export default function DitherGenerator() {
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
 
-  // Load image when URL changes
   useEffect(() => {
     if (!imageUrl) {
       imgRef.current = null
@@ -528,7 +517,6 @@ export default function DitherGenerator() {
     img.src = imageUrl
   }, [imageUrl])
 
-  // Re-render whenever image or any parameter changes
   useEffect(() => {
     if (!imgLoaded || !imgRef.current || !canvasRef.current) return
     renderDither(imgRef.current, canvasRef.current, {
@@ -591,7 +579,6 @@ export default function DitherGenerator() {
     })
   }, [])
 
-  // Paste from clipboard
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
       const item = Array.from(e.clipboardData?.items ?? []).find((i) =>
@@ -605,7 +592,6 @@ export default function DitherGenerator() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
-      {/* ── Header ─────────────────────────────────────────────── */}
       <header className="flex h-10 shrink-0 items-center justify-between border-b border-border px-4">
         <div className="flex items-center gap-4">
           <span className="text-[11px] font-medium tracking-[0.3em] uppercase">
@@ -632,9 +618,7 @@ export default function DitherGenerator() {
         </Button>
       </header>
 
-      {/* ── Body ───────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Desktop controls panel */}
         <aside className="hidden w-63 shrink-0 flex-col overflow-y-auto border-r border-border md:flex">
           <ControlsContent
             algorithm={algorithm}
@@ -658,16 +642,7 @@ export default function DitherGenerator() {
           />
         </aside>
 
-        {/* Canvas area */}
-        <main
-          className="relative flex flex-1 flex-col overflow-hidden"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle, var(--border) 1px, transparent 1px)",
-            backgroundSize: "20px 20px",
-          }}
-        >
-          {/* Scrollable canvas area */}
+        <main className="relative flex flex-1 flex-col overflow-hidden">
           <div
             className="relative flex flex-1 items-center justify-center overflow-auto"
             style={{
@@ -721,7 +696,6 @@ export default function DitherGenerator() {
               </div>
             )}
 
-            {/* Drag-over overlay when image already loaded */}
             {isDragging && imageUrl && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center border-2 border-dashed border-foreground bg-background/80 backdrop-blur-sm">
                 <span className="text-[11px] tracking-[0.25em] uppercase">
@@ -731,7 +705,6 @@ export default function DitherGenerator() {
             )}
           </div>
 
-          {/* Mobile bottom bar */}
           <div className="flex shrink-0 items-center gap-2 border-t border-border p-3 md:hidden">
             <Button
               variant="outline"
@@ -762,7 +735,7 @@ export default function DitherGenerator() {
                     Settings
                   </SheetTitle>
                 </SheetHeader>
-                <div className="flex-1 overflow-y-auto pb-20">
+                <div className="flex-1 overflow-y-auto pb-8">
                   <ControlsContent
                     algorithm={algorithm}
                     setAlgorithm={setAlgorithm}
